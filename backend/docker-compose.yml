@@ -1,0 +1,17 @@
+# Backend-only development file. The complete Mawthooq stack is defined in
+# ../docker-compose.yml and should be started from the repository root.
+# This file expects PostgreSQL to already be reachable on the host.
+version: '3.9'
+
+services:
+  backend:
+    build: .
+    container_name: mawthooq_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-mawthooq}:${POSTGRES_PASSWORD:-change-this-local-password}@host.docker.internal:5432/${POSTGRES_DB:-mawthooq}
+    volumes:
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

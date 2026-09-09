@@ -230,6 +230,12 @@ $case = Invoke-RestMethod -Method Post `
 $case
 ```
 
+List saved cases for the future dashboard:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/api/cases
+```
+
 Read the created case:
 
 ```powershell
@@ -280,6 +286,16 @@ Use the second command only when you intentionally want a clean database.
 **Port already in use**: change `BACKEND_PORT`, `FRONTEND_PORT`, or `POSTGRES_PORT` in `.env`, then restart Compose. `VITE_API_BASE_URL` must match the host-facing backend port if the frontend calls the API from a browser.
 
 **Backend exits while PostgreSQL starts**: run `docker compose logs db backend`. The backend waits for the database health check; retry after the database becomes healthy.
+
+**Backend tries `127.0.0.1:5432` or `localhost:5432`**: you started `backend/docker-compose.yml`, which is a backend-only file and does not start PostgreSQL. Stop it with `Ctrl+C`, move to the repository root, and start the complete stack instead:
+
+```powershell
+cd "D:\NTG internship\Mawthooq"
+docker compose down
+docker compose up --build
+```
+
+The root Compose file uses the database service name `db`, which is the correct network address inside Docker. Avoid running both Compose files at the same time because both try to use port `8000`.
 
 **Password authentication failed for user `mawthooq`**: PostgreSQL keeps its initial password in the named Docker volume. If `POSTGRES_PASSWORD` changed in `.env` after the first startup, reset the disposable local database with `docker compose down -v`, then run `docker compose up --build` again. This deletes only local development database data. If you need to preserve that data, restore the original password in `.env` instead.
 

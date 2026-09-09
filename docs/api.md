@@ -35,6 +35,28 @@ Response `200`:
 
 ## Cases
 
+### `GET /api/cases`
+
+Returns persisted cases ordered from newest to oldest. This endpoint is intended for the business dashboard and currently has no authentication until organization access control is added.
+
+Response `200`:
+
+```json
+[
+  {
+    "id": "case-uuid",
+    "case_type": "commercial_dispute",
+    "description": "Dispute concerning an unpaid supply contract.",
+    "current_stage": "evidence",
+    "status": "active",
+    "lawyer_proposed_action": "Submit supporting payment records",
+    "created_at": "2026-09-09T10:00:00Z"
+  }
+]
+```
+
+An empty database returns `[]`. Storage failures return `503`.
+
 ### `POST /api/cases`
 
 Creates and persists a case profile. This is the first implemented MVP endpoint and is consumed by the case-intake screen.

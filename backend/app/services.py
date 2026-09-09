@@ -10,3 +10,7 @@ def create_case(case: CaseCreate) -> dict[str, object]:
 
 def get_case(case_id: UUID) -> dict[str, object] | None:
     return repositories.get_case(case_id)
+
+
+def list_cases() -> list[dict[str, object]]:
+    return repositories.list_cases()

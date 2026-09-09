@@ -42,6 +42,16 @@ def get_case(case_id: UUID) -> dict[str, object] | None:
     return _row_to_dict(row) if row else None
 
 
+def list_cases() -> list[dict[str, object]]:
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"SELECT {CASE_COLUMNS} FROM cases ORDER BY created_at DESC"
+            )
+            rows = cursor.fetchall()
+    return [_row_to_dict(row) for row in rows]
+
+
 def _row_to_dict(row: tuple[object, ...]) -> dict[str, object]:
     return dict(
         zip(

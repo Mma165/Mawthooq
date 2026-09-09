@@ -19,4 +19,8 @@ h1 { max-width: 620px; margin: 18px 0; font: 700 clamp(3.4rem, 8vw, 7rem)/.95 'S
 .intro { max-width: 500px; color: #536057; font-size: 1.15rem; line-height: 1.65; }
 .status-row { display: inline-flex; gap: 10px; align-items: center; margin-top: 35px; padding: 11px 16px; border: 1px solid #b7c9b7; border-radius: 999px; color: #42634a; background: #f7faf4; font-size: .9rem; }
 .status-dot { width: 9px; height: 9px; border-radius: 50%; background: #4c9a62; }
+.backend-status { margin-left: 10px; }
+.backend-status.checking .status-dot { background: #c7923e; }
+.backend-status.unreachable { color: #9a4c42; border-color: #d8b7b1; }
+.backend-status.unreachable .status-dot { background: #c45245; }
 @media (max-width: 600px) { .topbar { padding: 22px 6vw; } .environment { display: none; } .welcome { padding-top: 12vh; } }
