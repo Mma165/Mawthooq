@@ -5,6 +5,8 @@ import psycopg
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.ai_provider import analyze_case_update
+
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -53,3 +55,15 @@ def database_health() -> dict[str, str]:
             cursor.execute("SELECT current_database()")
             database_name = cursor.fetchone()[0]
     return {"status": "ok", "database": database_name}
+
+
+@app.post("/ai/feasibility")
+def ai_feasibility(payload: dict[str, str]) -> dict[str, object]:
+    update_text = payload.get("update_text", "").strip()
+    if not update_text:
+        return {
+            "status": "invalid_input",
+            "message": "update_text is required",
+            "requires_human_review": True,
+        }
+    return analyze_case_update(update_text)

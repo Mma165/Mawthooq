@@ -159,6 +159,18 @@ Allowed states: `uploaded`, `extracting`, `indexed`, `ready`, `failed`, `needs_r
 
 ## Assessments
 
+### `POST /ai/feasibility`
+
+Day 2 live-provider proof endpoint. It accepts one representative case update and asks the configured local Ollama model to extract only explicitly stated facts. Gemini remains an optional provider. This endpoint is a feasibility proof, not the final case-analysis workflow.
+
+Request:
+
+```json
+{"update_text":"Hearing postponed to 15 October 2026."}
+```
+
+Response `200` with a configured provider includes the model name, structured model result, and `requires_human_review: true`. Without a key, it returns `status: needs_configuration`. Empty input returns `status: invalid_input`.
+
 ### `POST /api/cases/{case_id}/assessments`
 
 Starts a new assessment using the persisted case, document facts, timeline, proposed action, and retrieved legal sources.

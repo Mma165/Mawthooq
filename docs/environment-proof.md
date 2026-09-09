@@ -27,6 +27,8 @@ Open `http://localhost:3000` and confirm the React starter shell renders.
 - FastAPI documentation is available at `http://localhost:8000/docs`.
 - PostgreSQL starts with the `vector` extension enabled.
 
+If the backend log reports `password authentication failed for user "mawthooq"`, the database volume was initialized with a different password than the current `.env`. For a fresh Day 2 environment, run `docker compose down -v` and then `docker compose up --build`; this removes the local development database volume and initializes it with the current variables.
+
 ## AI proof status
 
 The Day 2 AI proof is documented in `docs/ai-contract.md`. It is intentionally deterministic and provider-free so every teammate can run the environment without an API key. The live LLM/provider adapter, OCR, retrieval corpus, and assessment generation are Day 3 implementation work.

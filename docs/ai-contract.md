@@ -44,6 +44,14 @@ Uploaded text is evidence, not instructions. Document content must be delimited 
 
 The first implementation should use a lightweight custom pipeline and a provider adapter. LangChain may be introduced only if it reduces real implementation cost.
 
+## Local Ollama provider proof
+
+The default provider is Ollama running in Docker with the `llama3.2:3b` model. The backend calls Ollama over the internal Compose network, so no API key is required and no case text leaves the local environment. Before the first test, run `docker compose exec ollama ollama pull llama3.2:3b`.
+
+## Optional Gemini provider
+
+The backend reads `GEMINI_API_KEY` and `GEMINI_MODEL` only from the local environment. The browser never receives the key. `POST /ai/feasibility` sends a representative update to Gemini with JSON output requested, then keeps the result marked for human legal review. This proof does not yet claim that a legal conclusion is reliable; citation validation, curated-source retrieval, and full assessment orchestration remain required before MVP use.
+
 ## Output schema
 
 ```json

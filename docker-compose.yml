@@ -1,4 +1,11 @@
 services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
   db:
     image: pgvector/pgvector:pg16
     environment:
@@ -20,6 +27,11 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-mawthooq}:${POSTGRES_PASSWORD:-mawthooq_dev}@db:5432/${POSTGRES_DB:-mawthooq}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -27,6 +39,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      ollama:
+        condition: service_started
 
   frontend:
     build: ./frontend
@@ -43,3 +57,4 @@ services:
 volumes:
   postgres_data:
   frontend_node_modules:
+  ollama_data:

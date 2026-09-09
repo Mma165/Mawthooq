@@ -16,9 +16,10 @@ Mawthooq supports case understanding, document-based updates, grounded analysis,
 | Backend | FastAPI, Python 3.12 | REST API and service boundary |
 | Database | PostgreSQL 16 with pgvector | Persistent case memory and future semantic retrieval |
 | Database driver | psycopg 3 | Backend database connectivity |
+| Local LLM | Ollama, `llama3.2:3b` | Free local feasibility and development model |
 | Containers | Docker Compose | Reproducible local development |
 
-The AI provider, document extraction pipeline, authentication, and product APIs will be added behind the backend boundary as the MVP is implemented.
+The backend uses Ollama by default. Gemini remains an optional provider selected with `LLM_PROVIDER=gemini`. Document extraction, authentication, and product APIs will be added behind the backend boundary as the MVP is implemented.
 
 ## Repository structure
 
@@ -72,7 +73,13 @@ No local Python, Node.js, or PostgreSQL installation is required for the Docker 
 	docker compose up --build
 	```
 
-4. Open the frontend at <http://localhost:3000>.
+4. Download the local model once in a second terminal:
+
+	```powershell
+	docker compose exec ollama ollama pull llama3.2:3b
+	```
+
+5. Open the frontend at <http://localhost:3000>.
 
 The backend is available at <http://localhost:8000>. Interactive API documentation is available at <http://localhost:8000/docs>.
 
@@ -93,6 +100,20 @@ python ai/feasibility_proof.py
 ```
 
 It parses the representative update `Hearing postponed to 15 October 2026.` and returns structured, traceable output without requiring an external AI key.
+
+To run the Gemini provider proof after adding `GEMINI_API_KEY` to your local `.env`, rebuild the backend:
+
+```powershell
+docker compose up --build
+```
+
+Then send a test request from a second terminal:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ai/feasibility -ContentType 'application/json' -Body '{"update_text":"Hearing postponed to 15 October 2026."}'
+```
+
+Never put the API key in source code, the frontend, Git, screenshots, or chat messages.
 
 ## Verify the environment
 
@@ -145,7 +166,11 @@ Use the second command only when you intentionally want a clean database.
 
 **Backend exits while PostgreSQL starts**: run `docker compose logs db backend`. The backend waits for the database health check; retry after the database becomes healthy.
 
+**Password authentication failed for user `mawthooq`**: PostgreSQL keeps its initial password in the named Docker volume. If `POSTGRES_PASSWORD` changed in `.env` after the first startup, reset the disposable local database with `docker compose down -v`, then run `docker compose up --build` again. This deletes only local development database data. If you need to preserve that data, restore the original password in `.env` instead.
+
 **Stale dependencies or build output**: rebuild with `docker compose build --no-cache`, then run `docker compose up`.
+
+**Ollama model is missing**: run `docker compose exec ollama ollama pull llama3.2:3b`. The model is stored in the named `ollama_data` volume for later runs.
 
 **Windows file sharing or Docker Desktop errors**: make sure the repository directory is available to Docker Desktop under Settings > Resources > File Sharing.
 
