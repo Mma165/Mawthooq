@@ -1,29 +1,18 @@
 from contextlib import asynccontextmanager
-import os
 
 import psycopg
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.ai_provider import analyze_case_update
-
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://mawthooq:mawthooq_dev@localhost:5432/mawthooq",
-)
-CORS_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
-    if origin.strip()
-]
+from app.config import CORS_ORIGINS
+from app.database import DATABASE_URL, initialize_database
+from app.routes import router as case_router
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    with psycopg.connect(DATABASE_URL) as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    initialize_database()
     yield
 
 
@@ -41,6 +30,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(case_router)
 
 
 @app.get("/health")

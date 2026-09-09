@@ -26,7 +26,13 @@ The backend uses Ollama by default. Gemini remains an optional provider selected
 ```text
 .
 ├── backend/
-│   ├── app/main.py       # FastAPI application and health routes
+│   ├── app/main.py       # FastAPI application and routes
+│   ├── app/routes.py     # Case API routes
+│   ├── app/schemas.py    # Validated API contracts
+│   ├── app/services.py   # Business service boundary
+│   ├── app/repositories.py # PostgreSQL case access
+│   ├── app/database.py   # Database initialization and connection
+│   ├── tests/            # Backend validation tests
 │   ├── requirements.txt  # Python dependencies
 │   └── Dockerfile
 ├── frontend/
@@ -155,6 +161,7 @@ The backend is available at <http://localhost:8000>. Interactive API documentati
 - [Environment proof](docs/environment-proof.md)
 - [Risk register](docs/risk-register.md)
 - [Day 3 backlog](docs/backlog.md)
+- [Day 3 implementation plan](docs/day3-plan.md)
 
 Run the provider-free feasibility proof from the repository root. This checks the extraction contract without needing any model or API key:
 
@@ -210,6 +217,35 @@ To inspect service status:
 ```powershell
 docker compose ps
 ```
+
+## Day 3 case API
+
+The first persistent MVP flow is now available. Create a case:
+
+```powershell
+$case = Invoke-RestMethod -Method Post `
+	-Uri http://localhost:8000/api/cases `
+	-ContentType "application/json" `
+	-Body '{"case_type":"commercial_dispute","description":"Dispute concerning an unpaid supply contract.","current_stage":"evidence","lawyer_proposed_action":"Submit supporting payment records"}'
+$case
+```
+
+Read the created case:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/api/cases/$($case.id)
+```
+
+Try invalid input to demonstrate validation:
+
+```powershell
+Invoke-RestMethod -Method Post `
+	-Uri http://localhost:8000/api/cases `
+	-ContentType "application/json" `
+	-Body '{"case_type":"not_supported","description":"short","current_stage":"unknown"}'
+```
+
+FastAPI returns `422 Unprocessable Entity` for this invalid request. The endpoint currently persists only the minimum `Case` record; authentication, organization ownership, documents, and case events follow in later slices.
 
 ## Stop and reset
 

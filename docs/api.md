@@ -37,7 +37,7 @@ Response `200`:
 
 ### `POST /api/cases`
 
-Creates a case profile. Consumed by the case-intake screen.
+Creates and persists a case profile. This is the first implemented MVP endpoint and is consumed by the case-intake screen.
 
 Request:
 
@@ -55,22 +55,26 @@ Response `201`:
 ```json
 {
   "id": "case-uuid",
-  "organization_id": "organization-uuid",
   "case_type": "commercial_dispute",
   "description": "Dispute concerning an unpaid supply contract.",
   "current_stage": "evidence",
   "status": "active",
+  "lawyer_proposed_action": "Submit supporting payment records",
   "created_at": "2026-09-09T10:00:00Z"
 }
 ```
 
-Errors: `400` invalid stage or missing description, `401` unauthenticated, `403` organization access denied.
+Validation errors return `422` for a missing/short description, unsupported case type or stage, oversized fields, or unknown request fields. Storage failures return `503`.
 
 ### `GET /api/cases/{case_id}`
 
-Returns the case profile, latest assessment summary, processing states, and review status. Consumed by the dashboard and intelligence screen.
+Returns a persisted case profile by UUID. It returns `404` when the case does not exist, `422` for an invalid UUID, and `503` when storage is unavailable.
 
-Errors: `401`, `403`, `404`.
+## Case values
+
+Supported `case_type` values are `commercial_dispute`, `employment`, `contract`, `debt`, and `other`.
+
+Supported `current_stage` values are `complaint`, `initial_review`, `evidence`, `hearing`, `judgment`, `appeal`, and `other`.
 
 ### `POST /api/cases/{case_id}/updates`
 
