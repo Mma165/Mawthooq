@@ -1,0 +1,236 @@
+# Mawthooq API Contract
+
+This is the initial REST contract for the MVP. The backend owns authorization, validation, persistence, AI orchestration, and audit history. The frontend consumes these resources and never calls the model provider directly.
+
+## Conventions
+
+- Base path: `/api`
+- IDs: UUID strings
+- Timestamps: ISO 8601 UTC strings
+- Upload and analysis work asynchronously.
+- Every case belongs to an organization; authorization must verify organization membership before access.
+- AI-derived responses include provenance and `requires_human_review`.
+
+## Health
+
+### `GET /health`
+
+Used by Docker and operations to confirm that the API process is alive.
+
+Response `200`:
+
+```json
+{"status":"ok","service":"mawthooq-api"}
+```
+
+### `GET /health/database`
+
+Checks PostgreSQL connectivity and the `vector` extension.
+
+Response `200`:
+
+```json
+{"status":"ok","database":"mawthooq"}
+```
+
+## Cases
+
+### `POST /api/cases`
+
+Creates a case profile. Consumed by the case-intake screen.
+
+Request:
+
+```json
+{
+  "case_type": "commercial_dispute",
+  "description": "Dispute concerning an unpaid supply contract.",
+  "current_stage": "evidence",
+  "lawyer_proposed_action": "Submit supporting payment records"
+}
+```
+
+Response `201`:
+
+```json
+{
+  "id": "case-uuid",
+  "organization_id": "organization-uuid",
+  "case_type": "commercial_dispute",
+  "description": "Dispute concerning an unpaid supply contract.",
+  "current_stage": "evidence",
+  "status": "active",
+  "created_at": "2026-09-09T10:00:00Z"
+}
+```
+
+Errors: `400` invalid stage or missing description, `401` unauthenticated, `403` organization access denied.
+
+### `GET /api/cases/{case_id}`
+
+Returns the case profile, latest assessment summary, processing states, and review status. Consumed by the dashboard and intelligence screen.
+
+Errors: `401`, `403`, `404`.
+
+### `POST /api/cases/{case_id}/updates`
+
+Adds an immutable user-provided update or official notification. It does not overwrite earlier history.
+
+Request:
+
+```json
+{
+  "text": "Hearing postponed to 15 October 2026.",
+  "source_type": "official_notification",
+  "received_at": "2026-09-09T10:10:00Z"
+}
+```
+
+Response `202`:
+
+```json
+{
+  "id": "update-uuid",
+  "case_id": "case-uuid",
+  "processing_status": "extracting",
+  "created_at": "2026-09-09T10:10:00Z"
+}
+```
+
+Errors: `400`, `401`, `403`, `404`, `422` unsupported content.
+
+### `GET /api/cases/{case_id}/timeline`
+
+Returns completed, current, and expected case events. Each event includes its source reference and confidence.
+
+Response `200`:
+
+```json
+{
+  "case_id": "case-uuid",
+  "events": [
+    {
+      "id": "event-uuid",
+      "stage": "hearing",
+      "label": "Hearing postponed",
+      "event_date": "2026-10-15",
+      "state": "current",
+      "source_refs": ["document-uuid:p1"]
+    }
+  ]
+}
+```
+
+## Documents
+
+### `POST /api/cases/{case_id}/documents`
+
+Accepts PDF, DOCX, or supported image files. Stores the binary in object storage and starts extraction asynchronously. The MVP never treats an uploaded document as trusted instructions.
+
+Response `202`:
+
+```json
+{
+  "id": "document-uuid",
+  "case_id": "case-uuid",
+  "filename": "hearing-notice.pdf",
+  "processing_status": "uploaded",
+  "created_at": "2026-09-09T10:20:00Z"
+}
+```
+
+Errors: `400` unsupported format or size, `401`, `403`, `404`, `413` too large.
+
+### `GET /api/documents/{document_id}/status`
+
+Response `200`:
+
+```json
+{
+  "id": "document-uuid",
+  "processing_status": "ready",
+  "extracted_page_count": 2,
+  "requires_human_review": false,
+  "error": null
+}
+```
+
+Allowed states: `uploaded`, `extracting`, `indexed`, `ready`, `failed`, `needs_review`.
+
+## Assessments
+
+### `POST /api/cases/{case_id}/assessments`
+
+Starts a new assessment using the persisted case, document facts, timeline, proposed action, and retrieved legal sources.
+
+Response `202`:
+
+```json
+{
+  "id": "assessment-uuid",
+  "case_id": "case-uuid",
+  "processing_status": "extracting",
+  "requires_human_review": true
+}
+```
+
+### `GET /api/assessments/{assessment_id}`
+
+Response `200`:
+
+```json
+{
+  "id": "assessment-uuid",
+  "favorable_outcome": {"low": 0.55, "high": 0.68, "unit": "probability"},
+  "resolution_time": {"low": 8, "high": 14, "unit": "months"},
+  "evidence_strength": "moderate",
+  "strengths": ["Signed contract"],
+  "risks": ["Missing payment records"],
+  "assumptions": ["The contract copy is complete"],
+  "uncertainties": ["Opposing response has not been received"],
+  "confidence": {"level": "medium", "basis": ["source_coverage", "extraction_quality"]},
+  "citations": [{"source_id": "document-uuid", "location": "page 2", "quote": "..."}],
+  "requires_human_review": true,
+  "model_version": "provider-adapter-v0",
+  "created_at": "2026-09-09T10:30:00Z"
+}
+```
+
+The result is an estimate for decision support, never a judge prediction.
+
+## Lawyer action verification
+
+### `POST /api/cases/{case_id}/action-verifications`
+
+Analyzes a proposed action and returns procedural basis, required information, relevant sources, and questions for the lawyer. It cannot approve or submit the action.
+
+Request:
+
+```json
+{"proposed_action":"File an appeal"}
+```
+
+Response `202` includes `processing_status`, `procedural_basis`, `required_information`, `questions_to_verify`, `citations`, and `requires_human_review`.
+
+## Preparation and review
+
+- `POST /api/cases/{case_id}/checklists` creates a required-document checklist.
+- `POST /api/cases/{case_id}/drafts` creates a review-only filing draft. It never submits it.
+- `POST /api/reviews` records an append-only human review with reviewer, decision, evidence reviewed, and comments.
+- `GET /api/reviews/{review_id}` returns the review record.
+
+These endpoints return `401`, `403`, `404`, `409` for invalid workflow state, and `422` for invalid input as appropriate.
+
+## Error shape
+
+All API errors should use a consistent shape:
+
+```json
+{
+  "error": {
+    "code": "insufficient_evidence",
+    "message": "A reliable assessment cannot be completed.",
+    "details": ["No document supports the proposed deadline."]
+  }
+}
+```

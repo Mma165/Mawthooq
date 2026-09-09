@@ -32,8 +32,17 @@ The AI provider, document extraction pipeline, authentication, and product APIs 
 │   ├── src/               # React starter shell
 │   ├── package.json
 │   └── Dockerfile
+├── ai/
+│   ├── feasibility_proof.py # Provider-free Day 2 AI proof
+│   └── fixtures/
 ├── docs/
-│   └── architecture.md
+│   ├── architecture.md
+│   ├── api.md
+│   ├── ai-contract.md
+│   ├── data-design.md
+│   ├── environment-proof.md
+│   ├── risk-register.md
+│   └── backlog.md
 ├── .env.example
 ├── docker-compose.yml
 └── README.md
@@ -66,6 +75,24 @@ No local Python, Node.js, or PostgreSQL installation is required for the Docker 
 4. Open the frontend at <http://localhost:3000>.
 
 The backend is available at <http://localhost:8000>. Interactive API documentation is available at <http://localhost:8000/docs>.
+
+## Day 2 documentation
+
+- [Architecture](docs/architecture.md)
+- [API contract](docs/api.md)
+- [AI contract](docs/ai-contract.md)
+- [Data design](docs/data-design.md)
+- [Environment proof](docs/environment-proof.md)
+- [Risk register](docs/risk-register.md)
+- [Day 3 backlog](docs/backlog.md)
+
+Run the provider-free feasibility proof from the repository root:
+
+```powershell
+python ai/feasibility_proof.py
+```
+
+It parses the representative update `Hearing postponed to 15 October 2026.` and returns structured, traceable output without requiring an external AI key.
 
 ## Verify the environment
 
