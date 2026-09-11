@@ -7,9 +7,9 @@ Ownership is assigned to the five Mawthooq team members: Mahmoud Ali, Ahmed Hate
 | B1 | Add SQLAlchemy/Alembic foundation and organization-scoped models | Backend | Must | Amr | Environment | Migration creates Organization, User, Case, Document, Event tables |
 | B2 | Add authentication and organization authorization | Backend | Must | Amr | B1 | Protected route rejects unauthenticated and cross-organization access |
 | B3 | Implement case create/get/update endpoints | Backend | Must | Amr | B1, B2 | API matches `docs/api.md` and has contract tests |
-| B4 | Implement secure document upload and processing states | Backend/AI | Must | Amr + Mahmoud Ali | B2, B3 | Supported file validation, private storage key, asynchronous status |
-| B5 | Implement text extraction and page provenance | AI/Data | Must | Mahmoud Ali + Ahmed Hatem + Asiyah | B4 | PDF fixture produces text/facts with page references or needs review |
-| B6 | Prepare curated legal-source fixture and pgvector retrieval | AI/Data | Must | Mahmoud Ali + Ahmed Hatem + Asiyah | Environment | Retrieved source includes jurisdiction and citation metadata |
+| B4 | Implement secure document upload and processing states | Backend/AI | Must | Amr + Mahmoud Ali | B2, B3 | **Integrated Day 4:** supported file validation, private local storage key, persisted metadata, and observable `uploaded` status. Extraction remains pending. |
+| B5 | Implement text extraction and page provenance | AI/Data | Must | Mahmoud Ali + Ahmed Hatem + Asiyah | B4 | **Gate 1 complete:** PDF/DOCX extraction, page references, language labels, quality states, and Arabic/English OCR fallback |
+| B6 | Prepare curated legal-source fixture and pgvector retrieval | AI/Data | Must | Mahmoud Ali + Ahmed Hatem + Asiyah | Environment | **Implemented:** explicit approved-PDF ingestion, manifest verification, pgvector chunks, and jurisdiction/category-filtered cited retrieval. |
 | B7 | Implement structured assessment adapter and grounding validation | AI | Must | Mahmoud Ali + Ahmed Hatem + Asiyah | B5, B6 | Output validates against schema and flags unsupported claims |
 | B8 | Build dashboard and case-intake screens | Frontend | Must | Aya Hegazy | B3, API contract | User can create a case and see processing state |
 | B9 | Build intelligence and lawyer-action verification screens | Frontend | Must | Aya Hegazy | B7, B10 | Journey, assessment, citations, review flag, and questions render |
@@ -31,4 +31,4 @@ Ownership is assigned to the five Mawthooq team members: Mahmoud Ali, Ahmed Hate
 
 ## Done for the first MVP slice
 
-A user can create a case, upload a supported document, see asynchronous processing status, view a traceable case event/assessment, understand uncertainty, and record that human review is required. No court filing or binding action is initiated by the system.
+A user can create a case, upload a supported document, and see its persisted `uploaded` processing status. Text extraction, traceable case events, assessments, authentication, and human review workflows remain pending. No court filing or binding action is initiated by the system.

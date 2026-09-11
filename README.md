@@ -21,6 +21,36 @@ Mawthooq supports case understanding, document-based updates, grounded analysis,
 
 The backend uses Ollama by default. Gemini remains an optional provider selected with `LLM_PROVIDER=gemini`. Document extraction, authentication, and product APIs will be added behind the backend boundary as the MVP is implemented.
 
+## RAG source corpus
+
+The initial corpus registry is in [ai/rag_sources.json](ai/rag_sources.json). It
+tracks official Saudi sources by publisher, authority type, language, jurisdiction,
+and business-case category. Download approved PDFs with:
+
+```powershell
+python ai/download_sources.py
+```
+
+Files are stored under the ignored `data/rag/sources/` directory. The downloader
+checks that each response is a PDF and writes `download_manifest.json` with the
+source URL, retrieval time, size, and SHA-256 hash. Arabic originals are retained;
+translation and multilingual retrieval will be added to the ingestion pipeline.
+
+Index the approved downloaded PDFs explicitly after the stack and the Ollama
+embedding model are running:
+
+```powershell
+docker compose exec backend python -m app.legal_ingestion
+```
+
+This command verifies the manifest hash, extracts page text, embeds chunks, and
+stores provenance in PostgreSQL. It is idempotent: unchanged source hashes are
+skipped. Search the indexed Saudi corpus without generating legal advice:
+
+```powershell
+Invoke-RestMethod 'http://localhost:8000/api/legal-sources/search?query=contract&jurisdiction=Saudi%20Arabia&case_category=contract'
+```
+
 ## Repository structure
 
 ```text
@@ -41,6 +71,8 @@ The backend uses Ollama by default. Gemini remains an optional provider selected
 │   └── Dockerfile
 ├── ai/
 │   ├── feasibility_proof.py # Provider-free Day 2 AI proof
+│   ├── rag_sources.json     # Approved Arabic legal-source registry
+│   ├── download_sources.py  # Provenance-preserving corpus downloader
 │   └── fixtures/
 ├── docs/
 │   ├── architecture.md

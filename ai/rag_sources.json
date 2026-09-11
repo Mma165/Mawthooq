@@ -1,0 +1,102 @@
+[
+  {
+    "source_id": "saudi-laws-bureau-of-experts",
+    "title": "Saudi Laws and Regulations Portal",
+    "url": "https://laws.boe.gov.sa/",
+    "publisher": "Bureau of Experts at the Council of Ministers",
+    "source_type": "official_law_portal",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract", "debt", "employment", "other"],
+    "download": false
+  },
+  {
+    "source_id": "umm-al-qura-official-access",
+    "title": "Official Access to Saudi Laws and Regulations",
+    "url": "https://www.uqn.gov.sa/official-access",
+    "publisher": "Umm Al-Qura Gazette",
+    "source_type": "official_law_portal",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract", "debt", "employment", "other"],
+    "download": false
+  },
+  {
+    "source_id": "saudi-execution-law",
+    "title": "Saudi Execution Law",
+    "url": "https://www.uqn.gov.sa/decisions-and-regulations/rules-and-regulations/4000869",
+    "publisher": "Umm Al-Qura Gazette",
+    "source_type": "binding_law",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["debt", "commercial_dispute"],
+    "download": false
+  },
+  {
+    "source_id": "ministry-of-justice-services",
+    "title": "Ministry of Justice Electronic Legal Services",
+    "url": "https://www.moj.gov.sa/ar/eServices/Pages/default.aspx",
+    "publisher": "Saudi Ministry of Justice",
+    "source_type": "procedural_guidance",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract", "debt", "employment"],
+    "download": false
+  },
+  {
+    "source_id": "ministry-of-commerce-guides",
+    "title": "Ministry of Commerce Guides and Procedures",
+    "url": "https://mc.gov.sa/ar/guides/Pages/default.aspx",
+    "publisher": "Saudi Ministry of Commerce",
+    "source_type": "procedural_guidance",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract", "other"],
+    "download": false
+  },
+  {
+    "source_id": "consumer-rights-guide",
+    "title": "Consumer Rights and Obligations Guide",
+    "url": "https://mc.gov.sa/ar/guides/CustomerGuide/Documents/MCIDoc.pdf",
+    "publisher": "Saudi Ministry of Commerce",
+    "source_type": "official_guidance",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract", "other"],
+    "download": true
+  },
+  {
+    "source_id": "zatca-vat-law-and-regulations",
+    "title": "Value Added Tax Law and Implementing Regulations",
+    "url": "https://zatca.gov.sa/ar/RulesRegulations/Taxes/Documents/%D9%86%D8%B8%D8%A7%D9%85%20%D8%B6%D8%B1%D9%8A%D8%A8%D8%A9%20%D8%A7%D9%84%D9%82%D9%8A%D9%85%D8%A9%20%D8%A7%D9%84%D9%85%D8%B6%D8%A7%D9%81%D8%A9%20(2).pdf",
+    "publisher": "Zakat, Tax and Customs Authority",
+    "source_type": "binding_law",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract", "other"],
+    "download": false,
+    "download_status": "blocked_non_pdf_response; retain URL for manual review"
+  },
+  {
+    "source_id": "zatca-e-invoicing-specifications",
+    "title": "E-Invoicing Specifications",
+    "url": "https://zatca.gov.sa/ar/E-Invoicing/SystemsDevelopers/Pages/E-Invoice-specifications.aspx",
+    "publisher": "Zakat, Tax and Customs Authority",
+    "source_type": "official_guidance",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract"],
+    "download": false
+  },
+  {
+    "source_id": "zatca-dispute-policies",
+    "title": "Policies and Procedures on Major Zakat, Tax and Customs Dispute Items",
+    "url": "https://zatca.gov.sa/ar/MediaCenter/Publications/Documents/ZATCA-Policies-and-Procedures-on-Major-Dispute-Items.pdf",
+    "publisher": "Zakat, Tax and Customs Authority",
+    "source_type": "official_guidance",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract", "other"],
+    "download": true
+  }
+]

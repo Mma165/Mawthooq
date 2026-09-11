@@ -151,7 +151,11 @@ Response `200`:
 
 ### `POST /api/cases/{case_id}/documents`
 
-Accepts PDF, DOCX, or supported image files. Stores the binary in object storage and starts extraction asynchronously. The MVP never treats an uploaded document as trusted instructions.
+Accepts PDF, DOCX, or supported image files. The development implementation validates
+and stores the binary in private local storage, then extracts page text and persists
+page provenance. Text-native documents normally transition to `ready`; scanned or
+poorly extracted documents transition to `needs_review`; malformed documents become
+`failed`. The MVP never treats an uploaded document as trusted instructions.
 
 Response `202`:
 
@@ -165,7 +169,8 @@ Response `202`:
 }
 ```
 
-Errors: `400` unsupported format or size, `401`, `403`, `404`, `413` too large.
+Errors: `400` unsupported format, empty content, or invalid file signature, `404` missing
+case, `413` too large, and `503` when document metadata storage is unavailable.
 
 ### `GET /api/documents/{document_id}/status`
 
@@ -182,6 +187,30 @@ Response `200`:
 ```
 
 Allowed states: `uploaded`, `extracting`, `indexed`, `ready`, `failed`, `needs_review`.
+
+### `POST /api/documents/{document_id}/index`
+
+Chunks the persisted page text, generates embeddings with the configured Ollama
+embedding model, stores vectors in pgvector, and changes the document status to
+`indexed`. The embedding model must be available in Ollama; otherwise the endpoint
+returns `503` and the document is not presented as searchable.
+
+### `GET /api/search?query=...&limit=5`
+
+Embeds an Arabic or English query and returns ranked chunks with document IDs,
+page numbers, distances, and citations in the form `document-uuid:pN`. This is a
+retrieval endpoint only; it does not generate a legal conclusion.
+
+## Legal sources
+
+### `GET /api/legal-sources/search?query=...&jurisdiction=Saudi%20Arabia&case_category=contract&limit=5`
+
+Searches explicitly ingested, approved legal-source PDF chunks. `jurisdiction` is
+required and `case_category` is optional; both are metadata filters applied before
+ranking. A blank query, unsupported category, or limit outside 1–20 is rejected
+before the embedding provider is called. Results include the official source
+metadata, matched page text, similarity distance, and a `source-id:pN` citation.
+This endpoint returns retrieval evidence only and never produces a legal conclusion.
 
 ## Assessments
 

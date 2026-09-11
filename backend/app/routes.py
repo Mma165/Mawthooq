@@ -1,13 +1,16 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
 import psycopg
 
 from app import services
-from app.schemas import CaseCreate, CaseResponse
+from app.schemas import CaseCreate, CaseResponse, DocumentStatusResponse, DocumentUploadResponse
 
 
 router = APIRouter(prefix="/api/cases", tags=["cases"])
+document_router = APIRouter(prefix="/api/documents", tags=["documents"])
+search_router = APIRouter(prefix="/api/search", tags=["search"])
+legal_source_router = APIRouter(prefix="/api/legal-sources", tags=["legal sources"])
 
 
 @router.get("", response_model=list[CaseResponse])
@@ -44,3 +47,73 @@ def get_case(case_id: UUID) -> CaseResponse:
     if case is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found.")
     return case
+
+
+@router.post("/{case_id}/documents", response_model=DocumentUploadResponse, status_code=status.HTTP_202_ACCEPTED)
+async def upload_case_document(case_id: UUID, file: UploadFile = File(...)) -> DocumentUploadResponse:
+    try:
+        return await services.upload_document(case_id, file)
+    except services.UploadError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+    except psycopg.Error as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Case storage is temporarily unavailable.",
+        ) from error
+
+
+@document_router.get("/{document_id}/status", response_model=DocumentStatusResponse)
+def document_status(document_id: UUID) -> DocumentStatusResponse:
+    try:
+        document = services.get_document_status(document_id)
+    except psycopg.Error as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document storage is temporarily unavailable.",
+        ) from error
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    return document
+
+
+@document_router.post("/{document_id}/index")
+def index_document(document_id: UUID) -> dict[str, object]:
+    try:
+        chunk_count = services.index_document(document_id)
+        return {"document_id": document_id, "status": "indexed", "chunk_count": chunk_count}
+    except services.UploadError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+    except (psycopg.Error, ValueError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document indexing is unavailable.",
+        ) from error
+
+
+@search_router.get("")
+def search_documents(query: str, limit: int = 5) -> dict[str, object]:
+    if limit < 1 or limit > 20:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="limit must be between 1 and 20.")
+    try:
+        return {"query": query, "results": services.search_documents(query, limit)}
+    except services.UploadError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+    except (psycopg.Error, ValueError) as error:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Document search is unavailable.") from error
+
+
+@legal_source_router.get("/search")
+def search_legal_sources(query: str, jurisdiction: str, case_category: str | None = None, limit: int = 5) -> dict[str, object]:
+    if limit < 1 or limit > 20:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="limit must be between 1 and 20.")
+    try:
+        return {
+            "query": query,
+            "jurisdiction": jurisdiction,
+            "case_category": case_category,
+            "results": services.search_legal_sources(query, jurisdiction, case_category, limit),
+        }
+    except services.UploadError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+    except (psycopg.Error, ValueError) as error:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Legal-source search is unavailable.") from error

@@ -12,7 +12,7 @@ React/Vite frontend :3000
 FastAPI backend :8000
     |-----------------------> PostgreSQL + pgvector :5432
     |
-    +-----------------------> Object storage (future: uploaded files)
+    +-----------------------> Local private upload storage (development)
     |
     +-----------------------> AI/document pipeline (future)
 ```
@@ -26,6 +26,11 @@ The initial Compose stack contains:
 - `frontend`: Vite development server and React shell.
 - `backend`: FastAPI application with `/health` and `/health/database`.
 - `db`: PostgreSQL 16 with the `pgvector` extension image.
+
+Uploaded binaries are stored during development in the ignored `backend/uploads/`
+directory using generated UUID filenames. PostgreSQL stores document metadata and
+processing status. Production object storage, malware scanning, and access control
+are still required before handling real customer data.
 
 The database has a named Docker volume so local data survives a normal `docker compose down`.
 
@@ -46,3 +51,11 @@ The database has a named Docker volume so local data survives a normal `docker c
 - Every generated claim must have a case-document or legal-source reference.
 - Conflicting sources, missing evidence, low confidence, high financial impact, and binding proposed actions require human review.
 - Direct court-system integration and automatic filing are outside the MVP.
+
+## Implemented legal-source retrieval
+
+Approved downloaded Saudi PDFs are ingested only by an explicit backend CLI command.
+The command verifies download-manifest hashes, persists source/page/chunk provenance,
+and stores pgvector embeddings. Case-document retrieval remains under `/api/search`;
+approved legal-source retrieval is separate at `/api/legal-sources/search` and requires
+a jurisdiction filter. Assessment generation is not part of this retrieval slice.

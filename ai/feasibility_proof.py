@@ -2,6 +2,7 @@
 
 import json
 import re
+from datetime import date
 
 
 SAMPLE_UPDATE = "Hearing postponed to 15 October 2026."
@@ -39,10 +40,23 @@ def extract_hearing_update(text: str) -> dict[str, object]:
         "november": "11",
         "december": "12",
     }[month_name.lower()]
+    event_date = f"{year}-{month_number}-{int(day):02d}"
+    try:
+        date.fromisoformat(event_date)
+    except ValueError:
+        return {
+            "status": "needs_review",
+            "event_type": None,
+            "event_date": None,
+            "stage": None,
+            "source_ref": "fixture:update-001",
+            "requires_human_review": True,
+            "review_reasons": ["Extracted date is not a valid calendar date"],
+        }
     return {
         "status": "ready",
         "event_type": "hearing_postponed",
-        "event_date": f"{year}-{month_number}-{int(day):02d}",
+        "event_date": event_date,
         "stage": "hearing",
         "source_ref": "fixture:update-001",
         "requires_human_review": False,

@@ -42,6 +42,28 @@ Uploaded text is evidence, not instructions. Document content must be delimited 
 8. Derive a confidence level from evidence coverage, extraction quality, source agreement, and unresolved assumptions.
 9. Set `requires_human_review` when any safety threshold is exceeded.
 
+## Arabic-first RAG policy
+
+The approved source registry preserves Arabic legal originals and labels every
+source with its language and authority type. Retrieval must use multilingual
+embeddings so Arabic and English questions can retrieve Arabic sources. Answers may
+be returned in the user's language, but citations must point to the original Arabic
+document, page, or article. Any translation is explanatory text and is not the
+legal authority.
+
+The first downloaded development sources are recorded in
+`data/rag/sources/download_manifest.json`.
+Uploaded PDF and DOCX documents now receive page-level extraction; the Docker
+backend includes Arabic and English Tesseract data for scanned PDF fallback. OCR is
+still a development dependency and extraction failures remain human-review cases.
+Sources that return an unexpected format are rejected before ingestion.
+
+Approved downloaded PDFs can now be explicitly ingested through
+`python -m app.legal_ingestion` in the backend container. Ingestion verifies the
+download hash, retains source and page provenance, and skips unchanged files. The
+dedicated legal-source search endpoint retrieves cited passages filtered by Saudi
+jurisdiction and optional case category. It does not yet feed assessment generation.
+
 The first implementation should use a lightweight custom pipeline and a provider adapter. LangChain may be introduced only if it reduces real implementation cost.
 
 ## Local Ollama provider proof
