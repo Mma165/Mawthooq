@@ -30,7 +30,8 @@
     "jurisdiction": "Saudi Arabia",
     "language": "ar",
     "case_categories": ["debt", "commercial_dispute"],
-    "download": false
+    "download": false,
+    "download_status": "candidate_for_flip; requires publisher-confirmed direct PDF URL before download=true"
   },
   {
     "source_id": "ministry-of-justice-services",
@@ -98,5 +99,89 @@
     "language": "ar",
     "case_categories": ["commercial_dispute", "contract", "other"],
     "download": true
+  },
+  {
+    "source_id": "saudi-labor-law",
+    "title": "Saudi Labor Law",
+    "url": "https://laws.boe.gov.sa/",
+    "publisher": "Bureau of Experts at the Council of Ministers",
+    "source_type": "binding_law",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["employment"],
+    "download": false,
+    "download_status": "candidate; requires publisher-confirmed direct PDF URL before download=true"
+  },
+  {
+    "source_id": "mhrsd-labor-guides",
+    "title": "Ministry of Human Resources Labor Guides",
+    "url": "https://www.hrsd.gov.sa/",
+    "publisher": "Ministry of Human Resources and Social Development",
+    "source_type": "procedural_guidance",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["employment"],
+    "download": false,
+    "download_status": "candidate; requires publisher-confirmed direct PDF URL before download=true"
+  },
+  {
+    "source_id": "saudi-commercial-courts-law",
+    "title": "Saudi Commercial Court Law",
+    "url": "https://laws.boe.gov.sa/",
+    "publisher": "Bureau of Experts at the Council of Ministers",
+    "source_type": "binding_law",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract", "debt"],
+    "download": false,
+    "download_status": "candidate; requires publisher-confirmed direct PDF URL before download=true"
+  },
+  {
+    "source_id": "saudi-companies-law",
+    "title": "Saudi Companies Law",
+    "url": "https://laws.boe.gov.sa/",
+    "publisher": "Bureau of Experts at the Council of Ministers",
+    "source_type": "binding_law",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract"],
+    "download": false,
+    "download_status": "candidate; requires publisher-confirmed direct PDF URL before download=true"
+  },
+  {
+    "source_id": "saudi-civil-procedures-law",
+    "title": "Saudi Civil Procedures Law",
+    "url": "https://laws.boe.gov.sa/",
+    "publisher": "Bureau of Experts at the Council of Ministers",
+    "source_type": "binding_law",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract", "debt", "employment", "other"],
+    "download": false,
+    "download_status": "candidate; requires publisher-confirmed direct PDF URL before download=true"
+  },
+  {
+    "source_id": "saudi-commercial-data-rules",
+    "title": "Saudi Commercial Data and Commercial Records Rules",
+    "url": "https://mc.gov.sa/",
+    "publisher": "Saudi Ministry of Commerce",
+    "source_type": "binding_law",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["commercial_dispute", "contract", "debt"],
+    "download": false,
+    "download_status": "candidate; requires publisher-confirmed direct PDF URL before download=true"
+  },
+  {
+    "source_id": "sama-consumer-finance-rules",
+    "title": "SAMA Consumer Finance and Credit Rules",
+    "url": "https://www.sama.gov.sa/",
+    "publisher": "Saudi Central Bank",
+    "source_type": "official_guidance",
+    "jurisdiction": "Saudi Arabia",
+    "language": "ar",
+    "case_categories": ["debt", "contract"],
+    "download": false,
+    "download_status": "candidate; requires publisher-confirmed direct PDF URL before download=true"
   }
 ]
