@@ -1,10 +1,12 @@
 import hashlib
+import re
 import tempfile
 from pathlib import Path
 from uuid import UUID, uuid4
 
 from fastapi import UploadFile
 
+from app import ai_provider
 from app.config import ALLOWED_UPLOAD_TYPES, MAX_UPLOAD_BYTES, UPLOAD_DIR
 from app.extraction import extract_document
 from app.rag import chunk_page, embed_text
@@ -177,6 +179,182 @@ def search_documents(query: str, limit: int = 5) -> list[dict[str, object]]:
         }
         for result in results
     ]
+
+
+def _retrieve_case_evidence(case: dict[str, object], query: str) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    embedding = embed_text(query)
+    legal_chunks = repositories.search_legal_source_chunks(
+        embedding, "Saudi Arabia", str(case["case_type"]), 3
+    )
+    document_chunks = repositories.search_case_document_chunks(embedding, case["id"], 3)
+    return legal_chunks, document_chunks
+
+
+def generate_assessment(case_id: UUID) -> dict[str, object]:
+    case = repositories.get_case(case_id)
+    if case is None:
+        raise UploadError("Case not found.", 404)
+    query = f"{case['case_type']} {case['description']} {case.get('lawyer_proposed_action') or ''}".strip()
+    try:
+        legal_chunks, document_chunks = _retrieve_case_evidence(case, query)
+    except ValueError as error:
+        raise UploadError("Case assessment is unavailable.", 503) from error
+    try:
+        generated = ai_provider.generate_case_assessment(case, legal_chunks, document_chunks)
+    except RuntimeError as error:
+        raise UploadError("Case assessment is unavailable.", 503) from error
+    return repositories.create_assessment({
+        "case_id": case_id,
+        "summary": generated["summary"],
+        "what_happens_next": generated["what_happens_next"],
+        "risks": generated["risks"],
+        "recommended_lawyer_questions": generated["recommended_lawyer_questions"],
+        "citations": generated["citations"],
+        "provider": generated["provider"],
+        "model": generated["model"],
+    })
+
+
+def list_assessments(case_id: UUID) -> list[dict[str, object]]:
+    if not repositories.case_exists(case_id):
+        raise UploadError("Case not found.", 404)
+    return repositories.list_assessments(case_id)
+
+
+def chat_with_case(case_id: UUID, message: str) -> dict[str, object]:
+    case = repositories.get_case(case_id)
+    if case is None:
+        raise UploadError("Case not found.", 404)
+    normalized = message.strip()
+    if not normalized:
+        raise UploadError("Chat message is required.")
+    history = repositories.list_case_messages(case_id)
+    user_message = repositories.create_case_message({
+        "case_id": case_id, "role": "user", "content": normalized, "citations": [],
+    })
+    try:
+        legal_chunks, document_chunks = _retrieve_case_evidence(case, normalized)
+    except ValueError as error:
+        raise UploadError("Case chat is unavailable.", 503) from error
+    try:
+        generated = ai_provider.generate_case_chat_reply(
+            case, history, normalized, legal_chunks, document_chunks
+        )
+    except RuntimeError as error:
+        raise UploadError("Case chat is unavailable.", 503) from error
+    assistant_message = repositories.create_case_message({
+        "case_id": case_id, "role": "assistant",
+        "content": generated["reply"], "citations": generated["citations"],
+    })
+    return {"user_message": user_message, "assistant_message": assistant_message}
+
+
+def list_case_messages(case_id: UUID) -> list[dict[str, object]]:
+    if not repositories.case_exists(case_id):
+        raise UploadError("Case not found.", 404)
+    return repositories.list_case_messages(case_id)
+
+
+CITATION_PATTERN = re.compile(r"([A-Za-z0-9][A-Za-z0-9\-]{2,}):p(\d+)")
+
+
+def extract_citations(
+    text: str,
+    legal_evidence: list[dict[str, object]],
+    document_evidence: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Keep only inline source-id:pN citations that match retrieved evidence."""
+    known: dict[tuple[str, int], dict[str, object]] = {}
+    for chunk in legal_evidence:
+        known[(str(chunk.get("source_id")), int(chunk.get("page_number")))] = chunk
+    for chunk in document_evidence:
+        known[(str(chunk.get("document_id")), int(chunk.get("page_number")))] = chunk
+    citations = []
+    seen = set()
+    for match in CITATION_PATTERN.finditer(text or ""):
+        key = (match.group(1), int(match.group(2)))
+        if key in known and key not in seen:
+            seen.add(key)
+            chunk = known[key]
+            citations.append({
+                "source_id": key[0],
+                "location": f"page {key[1]}",
+                "quote": str(chunk.get("text", ""))[:300],
+            })
+    return citations
+
+
+def prepare_chat_stream(case_id: UUID, message: str) -> dict[str, object]:
+    """Validate, persist the user message, and retrieve evidence before streaming."""
+    case = repositories.get_case(case_id)
+    if case is None:
+        raise UploadError("Case not found.", 404)
+    normalized = message.strip()
+    if not normalized:
+        raise UploadError("Chat message is required.")
+    history = repositories.list_case_messages(case_id)
+    user_message = repositories.create_case_message({
+        "case_id": case_id, "role": "user", "content": normalized, "citations": [],
+    })
+    try:
+        legal_chunks, document_chunks = _retrieve_case_evidence(case, normalized)
+    except ValueError as error:
+        raise UploadError("Case chat is unavailable.", 503) from error
+    prompt = ai_provider.build_case_chat_prompt(
+        case, history, normalized, legal_chunks, document_chunks
+    )
+    return {
+        "case": case,
+        "case_id": case_id,
+        "history": history,
+        "message": normalized,
+        "prompt": prompt,
+        "legal_chunks": legal_chunks,
+        "document_chunks": document_chunks,
+        "user_message": user_message,
+    }
+
+
+def stream_chat_reply(prepared: dict[str, object]):
+    """Yield SSE-ready events: deltas while generating, then the stored reply."""
+    provider = ai_provider.PROVIDER
+    if provider == "ollama":
+        try:
+            deltas = ai_provider.stream_ollama_tokens(prepared["prompt"])
+        except RuntimeError:
+            yield {"type": "error", "detail": "Case chat is unavailable."}
+            return
+        full_parts = []
+        try:
+            for delta in deltas:
+                full_parts.append(delta)
+                yield {"type": "delta", "text": delta}
+        except RuntimeError:
+            yield {"type": "error", "detail": "Case chat is unavailable."}
+            return
+        reply_text = "".join(full_parts)
+    else:
+        try:
+            generated = ai_provider.generate_case_chat_reply(
+                prepared["case"],
+                prepared["history"],
+                prepared["message"],
+                prepared["legal_chunks"],
+                prepared["document_chunks"],
+            )
+        except RuntimeError:
+            yield {"type": "error", "detail": "Case chat is unavailable."}
+            return
+        reply_text = generated["reply"]
+        yield {"type": "delta", "text": reply_text}
+    citations = extract_citations(
+        reply_text, prepared["legal_chunks"], prepared["document_chunks"]
+    )
+    assistant_message = repositories.create_case_message({
+        "case_id": prepared["case_id"], "role": "assistant",
+        "content": reply_text, "citations": citations,
+    })
+    yield {"type": "done", "message": assistant_message}
 
 
 def search_legal_sources(query: str, jurisdiction: str, case_category: str | None, limit: int = 5) -> list[dict[str, object]]:

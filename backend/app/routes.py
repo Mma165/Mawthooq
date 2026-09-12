@@ -1,10 +1,20 @@
+import json
 from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi.responses import StreamingResponse
 import psycopg
 
 from app import services
-from app.schemas import CaseCreate, CaseResponse, DocumentStatusResponse, DocumentUploadResponse
+from app.schemas import (
+    AssessmentResponse,
+    CaseCreate,
+    CaseResponse,
+    ChatMessageResponse,
+    ChatRequest,
+    DocumentStatusResponse,
+    DocumentUploadResponse,
+)
 
 
 router = APIRouter(prefix="/api/cases", tags=["cases"])
@@ -87,6 +97,87 @@ def index_document(document_id: UUID) -> dict[str, object]:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Document indexing is unavailable.",
+        ) from error
+
+
+@router.post("/{case_id}/assessments", response_model=AssessmentResponse, status_code=status.HTTP_201_CREATED)
+def create_assessment(case_id: UUID) -> AssessmentResponse:
+    try:
+        return services.generate_assessment(case_id)
+    except services.UploadError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+    except (psycopg.Error, ValueError, RuntimeError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Case assessment is unavailable.",
+        ) from error
+
+
+@router.get("/{case_id}/assessments", response_model=list[AssessmentResponse])
+def get_assessments(case_id: UUID) -> list[AssessmentResponse]:
+    try:
+        return services.list_assessments(case_id)
+    except services.UploadError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+    except psycopg.Error as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Case storage is temporarily unavailable.",
+        ) from error
+
+
+@router.post("/{case_id}/chat")
+def chat_with_case(case_id: UUID, payload: ChatRequest) -> dict[str, object]:
+    try:
+        return services.chat_with_case(case_id, payload.message)
+    except services.UploadError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+    except (psycopg.Error, ValueError, RuntimeError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Case chat is unavailable.",
+        ) from error
+
+
+@router.post("/{case_id}/chat/stream")
+def chat_stream(case_id: UUID, payload: ChatRequest):
+    try:
+        prepared = services.prepare_chat_stream(case_id, payload.message)
+    except services.UploadError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+    except (psycopg.Error, ValueError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Case chat is unavailable.",
+        ) from error
+
+    def event_stream():
+        try:
+            yield "data: " + json.dumps(
+                {"type": "user", "message": prepared["user_message"]},
+                ensure_ascii=False, default=str,
+            ) + "\n\n"
+            for event in services.stream_chat_reply(prepared):
+                yield "data: " + json.dumps(event, ensure_ascii=False, default=str) + "\n\n"
+        except (psycopg.Error, ValueError, RuntimeError):
+            yield "data: " + json.dumps(
+                {"type": "error", "detail": "Case chat is unavailable."},
+                ensure_ascii=False,
+            ) + "\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.get("/{case_id}/messages", response_model=list[ChatMessageResponse])
+def get_case_messages(case_id: UUID) -> list[ChatMessageResponse]:
+    try:
+        return services.list_case_messages(case_id)
+    except services.UploadError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+    except psycopg.Error as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Case storage is temporarily unavailable.",
         ) from error
 
 

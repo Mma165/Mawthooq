@@ -256,6 +256,110 @@ def search_legal_source_chunks(embedding: list[float], jurisdiction: str, case_c
     return [dict(zip(columns, row, strict=True)) for row in rows]
 
 
+ASSESSMENT_COLUMNS = "id, case_id, summary, what_happens_next, risks, recommended_lawyer_questions, citations, provider, model, requires_human_review, created_at"
+MESSAGE_COLUMNS = "id, case_id, role, content, citations, requires_human_review, created_at"
+
+
+def search_case_document_chunks(embedding: list[float], case_id: UUID, limit: int = 5) -> list[dict[str, object]]:
+    vector = _vector_literal(embedding)
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT dc.id, dc.document_id, dc.page_number, dc.chunk_index, dc.text,
+                       dc.embedding <=> %s::vector AS distance
+                FROM document_chunks dc
+                JOIN documents d ON d.id = dc.document_id
+                WHERE dc.embedding IS NOT NULL AND d.case_id = %s
+                ORDER BY dc.embedding <=> %s::vector
+                LIMIT %s
+                """,
+                (vector, case_id, vector, limit),
+            )
+            rows = cursor.fetchall()
+    return [
+        dict(zip(("id", "document_id", "page_number", "chunk_index", "text", "distance"), row, strict=True))
+        for row in rows
+    ]
+
+
+def create_assessment(assessment: dict[str, object]) -> dict[str, object]:
+    assessment_id = uuid4()
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                INSERT INTO assessments (
+                    id, case_id, summary, what_happens_next, risks,
+                    recommended_lawyer_questions, citations, provider, model
+                ) VALUES (%s, %s, %s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s)
+                RETURNING {ASSESSMENT_COLUMNS}
+                """,
+                (
+                    assessment_id,
+                    assessment["case_id"],
+                    assessment["summary"],
+                    json.dumps(assessment["what_happens_next"]),
+                    json.dumps(assessment["risks"]),
+                    json.dumps(assessment["recommended_lawyer_questions"]),
+                    json.dumps(assessment["citations"]),
+                    assessment.get("provider", "ollama"),
+                    assessment.get("model", ""),
+                ),
+            )
+            row = cursor.fetchone()
+        connection.commit()
+    return _row_to_dict(row, ASSESSMENT_COLUMNS)
+
+
+def list_assessments(case_id: UUID) -> list[dict[str, object]]:
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"SELECT {ASSESSMENT_COLUMNS} FROM assessments WHERE case_id = %s ORDER BY created_at DESC",
+                (case_id,),
+            )
+            rows = cursor.fetchall()
+    return [_row_to_dict(row, ASSESSMENT_COLUMNS) for row in rows]
+
+
+def create_case_message(message: dict[str, object]) -> dict[str, object]:
+    message_id = uuid4()
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                INSERT INTO case_messages (id, case_id, role, content, citations)
+                VALUES (%s, %s, %s, %s, %s::jsonb)
+                RETURNING {MESSAGE_COLUMNS}
+                """,
+                (
+                    message_id,
+                    message["case_id"],
+                    message["role"],
+                    message["content"],
+                    json.dumps(message.get("citations", [])),
+                ),
+            )
+            row = cursor.fetchone()
+        connection.commit()
+    return _row_to_dict(row, MESSAGE_COLUMNS)
+
+
+def list_case_messages(case_id: UUID, limit: int = 50) -> list[dict[str, object]]:
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT {MESSAGE_COLUMNS} FROM case_messages
+                WHERE case_id = %s ORDER BY created_at ASC LIMIT %s
+                """,
+                (case_id, limit),
+            )
+            rows = cursor.fetchall()
+    return [_row_to_dict(row, MESSAGE_COLUMNS) for row in rows]
+
+
 def _vector_literal(values: object) -> str:
     return "[" + ",".join(str(float(value)) for value in values) + "]"
 

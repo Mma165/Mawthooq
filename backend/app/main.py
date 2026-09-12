@@ -6,14 +6,17 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.ai_provider import analyze_case_update
 from app.config import CORS_ORIGINS
-from app.database import DATABASE_URL, initialize_database
+from app.database import DATABASE_URL, close_pool, initialize_database
 from app.routes import document_router, legal_source_router, router as case_router, search_router
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize_database()
-    yield
+    try:
+        yield
+    finally:
+        close_pool()
 
 
 app = FastAPI(

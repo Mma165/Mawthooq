@@ -78,3 +78,37 @@ class DocumentStatusResponse(BaseModel):
     requires_human_review: bool
     error: str | None
     created_at: datetime
+
+
+class AssessmentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    case_id: UUID
+    summary: str
+    what_happens_next: list[object]
+    risks: list[object]
+    recommended_lawyer_questions: list[object]
+    citations: list[object]
+    provider: str
+    model: str
+    requires_human_review: bool
+    created_at: datetime
+
+
+class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1, max_length=2000)
+
+
+class ChatMessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    case_id: UUID
+    role: str
+    content: str
+    citations: list[object]
+    requires_human_review: bool
+    created_at: datetime

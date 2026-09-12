@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 import httpx
 
 from app.config import EMBEDDING_MODEL, OLLAMA_BASE_URL
@@ -24,6 +26,7 @@ def chunk_page(text: str, page_number: int, chunk_size: int = 900, overlap: int 
     return chunks
 
 
+@lru_cache(maxsize=128)
 def embed_text(text: str) -> list[float]:
     response = httpx.post(
         f"{OLLAMA_BASE_URL}/api/embeddings",

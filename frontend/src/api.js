@@ -33,3 +33,52 @@ export async function uploadDocument(caseId, file) {
 export async function getDocumentStatus(documentId) {
   return parseResponse(await fetch(`${apiBaseUrl}/api/documents/${documentId}/status`));
 }
+
+export async function createAssessment(caseId) {
+  return parseResponse(await fetch(`${apiBaseUrl}/api/cases/${caseId}/assessments`, {
+    method: 'POST',
+  }));
+}
+
+export async function listAssessments(caseId) {
+  return parseResponse(await fetch(`${apiBaseUrl}/api/cases/${caseId}/assessments`));
+}
+
+export async function sendCaseChat(caseId, message) {
+  return parseResponse(await fetch(`${apiBaseUrl}/api/cases/${caseId}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  }));
+}
+
+export async function listCaseMessages(caseId) {
+  return parseResponse(await fetch(`${apiBaseUrl}/api/cases/${caseId}/messages`));
+}
+
+export async function sendCaseChatStream(caseId, message, onEvent) {
+  const response = await fetch(`${apiBaseUrl}/api/cases/${caseId}/chat/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const detail = typeof body.detail === 'string' ? body.detail : `Request failed (HTTP ${response.status})`;
+    throw new Error(detail);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split('\n\n');
+    buffer = parts.pop();
+    for (const part of parts) {
+      const line = part.split('\n').find((candidate) => candidate.startsWith('data:'));
+      if (line) onEvent(JSON.parse(line.slice(5).trim()));
+    }
+  }
+}

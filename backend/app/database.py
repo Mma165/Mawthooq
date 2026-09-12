@@ -98,9 +98,75 @@ CREATE TABLE IF NOT EXISTS legal_source_chunks (
 )
 """
 
+CREATE_ASSESSMENTS_TABLE = """
+CREATE TABLE IF NOT EXISTS assessments (
+    id UUID PRIMARY KEY,
+    case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    summary TEXT NOT NULL,
+    what_happens_next JSONB NOT NULL,
+    risks JSONB NOT NULL,
+    recommended_lawyer_questions JSONB NOT NULL,
+    citations JSONB NOT NULL,
+    provider VARCHAR(32) NOT NULL DEFAULT 'ollama',
+    model VARCHAR(128) NOT NULL DEFAULT '',
+    requires_human_review BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)
+"""
 
-def get_connection() -> psycopg.Connection:
-    return psycopg.connect(DATABASE_URL)
+CREATE_CASE_MESSAGES_TABLE = """
+CREATE TABLE IF NOT EXISTS case_messages (
+    id UUID PRIMARY KEY,
+    case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    role VARCHAR(16) NOT NULL,
+    content TEXT NOT NULL,
+    citations JSONB NOT NULL DEFAULT '[]',
+    requires_human_review BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)
+"""
+
+
+# NOTE: no pgvector HNSW/IVFFlat index is created on the embedding columns.
+# The vector columns are intentionally dimensionless so the embedding model can
+# change without a schema migration, and pgvector refuses approximate indexes
+# on dimensionless columns. At the current corpus size (hundreds of rows) a
+# sequential scan is optimal; revisit only past ~10k chunks, and only after
+# pinning the columns to vector(<dim>).
+CREATE_INDEXES = """
+CREATE INDEX IF NOT EXISTS documents_case_id_idx ON documents (case_id);
+CREATE INDEX IF NOT EXISTS document_pages_document_id_idx ON document_pages (document_id);
+CREATE INDEX IF NOT EXISTS document_chunks_document_id_idx ON document_chunks (document_id);
+CREATE INDEX IF NOT EXISTS legal_source_chunks_source_id_idx ON legal_source_chunks (source_id);
+CREATE INDEX IF NOT EXISTS legal_source_pages_source_id_idx ON legal_source_pages (source_id);
+CREATE INDEX IF NOT EXISTS assessments_case_id_idx ON assessments (case_id);
+CREATE INDEX IF NOT EXISTS case_messages_case_id_idx ON case_messages (case_id);
+CREATE INDEX IF NOT EXISTS cases_created_at_idx ON cases (created_at DESC);
+"""
+
+
+_pool = None
+
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        from psycopg_pool import ConnectionPool
+
+        _pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=10, open=True)
+    return _pool
+
+
+def get_connection():
+    """Yield a pooled connection; kept as a context manager for callers."""
+    return _get_pool().connection()
+
+
+def close_pool() -> None:
+    global _pool
+    if _pool is not None:
+        _pool.close()
+        _pool = None
 
 
 def initialize_database() -> None:
@@ -114,4 +180,9 @@ def initialize_database() -> None:
             cursor.execute(CREATE_LEGAL_SOURCES_TABLE)
             cursor.execute(CREATE_LEGAL_SOURCE_PAGES_TABLE)
             cursor.execute(CREATE_LEGAL_SOURCE_CHUNKS_TABLE)
+            cursor.execute(CREATE_ASSESSMENTS_TABLE)
+            cursor.execute(CREATE_CASE_MESSAGES_TABLE)
+            for statement in CREATE_INDEXES.strip().split(";"):
+                if statement.strip():
+                    cursor.execute(statement)
         connection.commit()

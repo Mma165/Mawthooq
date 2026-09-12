@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createCase, getHealth, uploadDocument } from './api';
+import { createAssessment, createCase, getHealth, sendCaseChatStream, uploadDocument } from './api';
 import './styles.css';
 
 function App() {
@@ -17,6 +17,13 @@ function App() {
   const [documentState, setDocumentState] = useState('idle');
   const [documentData, setDocumentData] = useState(null);
   const [documentError, setDocumentError] = useState('');
+  const [assessmentState, setAssessmentState] = useState('idle');
+  const [assessment, setAssessment] = useState(null);
+  const [assessmentError, setAssessmentError] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatState, setChatState] = useState('idle');
+  const [chatError, setChatError] = useState('');
 
   useEffect(() => {
     getHealth().then(() => setBackendStatus('connected')).catch(() => setBackendStatus('unreachable'));
@@ -39,9 +46,75 @@ function App() {
       });
       setCaseData(createdCase);
       setCaseState('success');
+      setAssessment(null);
+      setAssessmentState('idle');
+      setAssessmentError('');
+      setChatMessages([]);
+      setChatInput('');
+      setChatError('');
     } catch (error) {
       setCaseState('error');
       setCaseError(error.message);
+    }
+  }
+
+  async function handleAssessmentGenerate() {
+    if (!caseData) return;
+    setAssessmentState('loading');
+    setAssessmentError('');
+    try {
+      const generated = await createAssessment(caseData.id);
+      setAssessment(generated);
+      setAssessmentState('success');
+    } catch (error) {
+      setAssessmentState('error');
+      setAssessmentError(error.message);
+    }
+  }
+
+  async function handleChatSubmit(event) {
+    event.preventDefault();
+    if (!caseData || !chatInput.trim() || chatState === 'loading') return;
+    const outgoing = chatInput.trim();
+    const activeCaseId = caseData.id;
+    const pendingId = `pending-${Date.now()}`;
+    setChatInput('');
+    setChatState('loading');
+    setChatError('');
+    try {
+      await sendCaseChatStream(activeCaseId, outgoing, (streamEvent) => {
+        if (streamEvent.type === 'user') {
+          setChatMessages((previous) => [...previous, streamEvent.message]);
+        } else if (streamEvent.type === 'delta') {
+          setChatMessages((previous) => {
+            const last = previous[previous.length - 1];
+            if (last && last.id === pendingId) {
+              return [...previous.slice(0, -1), { ...last, content: last.content + streamEvent.text }];
+            }
+            return [...previous, {
+              id: pendingId,
+              case_id: activeCaseId,
+              role: 'assistant',
+              content: streamEvent.text,
+              citations: [],
+              requires_human_review: true,
+              created_at: new Date().toISOString(),
+            }];
+          });
+        } else if (streamEvent.type === 'done') {
+          setChatMessages((previous) => {
+            const last = previous[previous.length - 1];
+            if (last && last.id === pendingId) return [...previous.slice(0, -1), streamEvent.message];
+            return [...previous, streamEvent.message];
+          });
+        } else if (streamEvent.type === 'error') {
+          throw new Error(streamEvent.detail || 'Case chat is unavailable.');
+        }
+      });
+      setChatState('idle');
+    } catch (error) {
+      setChatState('error');
+      setChatError(error.message);
     }
   }
 
@@ -138,6 +211,43 @@ function App() {
             {documentState === 'loading' && <p className="notice">Uploading and checking the file...</p>}
             {documentState === 'error' && <p className="form-error" role="alert">{documentError}</p>}
             {documentData && <div className="document-result"><span className="tag">Uploaded</span><strong>{documentData.filename}</strong><span>{Math.ceil(documentData.size_bytes / 1024)} KB · {documentData.processing_status}</span><small>Extraction will be added in the next processing step.</small></div>}
+          </section>}
+          {caseData && <section className="intelligence-panel">
+            <div className="section-heading"><p className="eyebrow">03 / AI intelligence</p><h2>Assessment and case chat.</h2></div>
+            <p className="disclaimer">AI decision support only — requires human lawyer review. It never replaces a lawyer or predicts a court outcome.</p>
+            <button type="button" onClick={handleAssessmentGenerate} disabled={assessmentState === 'loading'}>
+              {assessmentState === 'loading' ? 'Generating assessment...' : 'Generate legal assessment'}
+            </button>
+            {assessmentState === 'error' && <p className="form-error" role="alert">{assessmentError}</p>}
+            {assessment && <article className="assessment-result">
+              <span className="tag">Assessment · {assessment.provider}/{assessment.model}</span>
+              <p className="assessment-summary">{assessment.summary}</p>
+              <h3>What happens next</h3>
+              <ul>{assessment.what_happens_next.map((item, index) => <li key={index}>{typeof item === 'string' ? item : item.text}</li>)}</ul>
+              <h3>Risks</h3>
+              <ul>{assessment.risks.map((risk, index) => <li key={index}>{typeof risk === 'string' ? risk : JSON.stringify(risk)}</li>)}</ul>
+              <h3>Questions for your lawyer</h3>
+              <ul>{assessment.recommended_lawyer_questions.map((question, index) => <li key={index}>{typeof question === 'string' ? question : JSON.stringify(question)}</li>)}</ul>
+              <h3>Citations</h3>
+              <ul className="citation-list">{assessment.citations.map((citation, index) => <li key={index}>{typeof citation === 'string' ? citation : `${citation.source_id || ''} ${citation.location || ''}`.trim()}</li>)}</ul>
+            </article>}
+            <div className="chat-panel">
+              <h3>Ask about this case</h3>
+              <div className="chat-log">
+                {chatMessages.length === 0 && <p className="muted">No messages yet. Ask a follow-up question about the case.</p>}
+                {chatMessages.map((entry) => (
+                  <div key={entry.id} className={`chat-message ${entry.role}`}>
+                    <strong>{entry.role === 'user' ? 'You' : 'Case agent'}</strong>
+                    <p>{entry.content}</p>
+                  </div>
+                ))}
+              </div>
+              <form className="chat-form" onSubmit={handleChatSubmit}>
+                <input type="text" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Ask about procedure, risks, or next steps..." maxLength={2000} disabled={chatState === 'loading'} />
+                <button type="submit" disabled={chatState === 'loading' || !chatInput.trim()}>{chatState === 'loading' ? 'Thinking...' : 'Send'}</button>
+              </form>
+              {chatState === 'error' && <p className="form-error" role="alert">{chatError}</p>}
+            </div>
           </section>}
         </div>
       </section>
